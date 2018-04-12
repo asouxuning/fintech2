@@ -4,7 +4,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.svm import SVC
 import sys
-
 import stock_data as sd
 
 dtype = tf.float32

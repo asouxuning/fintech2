@@ -68,25 +68,28 @@ def scale_elem(X, scale=scale):
   else:
     return np.array([])
     
-def get_stock_samples(stock_data, seq_len = 30, n_hold_days=5, split_rate=0.8):
+x_cols=['open', 'close', 'high', 'low', 'volume'] 
+def get_stock_samples(stock_data, x_cols=x_cols, seq_len = 30, n_hold_days=5): #, split_rate=0.8):
   # 先升序排列,再添加收益率 
   stock_data = set_stock_data_datetime_index(stock_data)
   
   stock_data = stock_data_add_return(stock_data, n_hold_days)
   
-  x_cols=['open', 'close', 'high', 'low', 'volume'] 
   x,y = split_data_cols(stock_data, x_cols=x_cols, y_cols=['return'])
-  dataX,dataY = get_seq_samples(x,y,seq_len)
-  dataX,dataY = shufflelists([dataX,dataY])
+  X,Y = get_seq_samples(x,y,seq_len)
   
-  (X_train,X_test) = split_data_rows(dataX, split_rate)
-  (Y_train,Y_test) = split_data_rows(dataY, split_rate)
+  return X,Y
+
+  #dataX,dataY = shufflelists([dataX,dataY])
+  
+  #(X_train,X_test) = split_data_rows(dataX, split_rate)
+  #(Y_train,Y_test) = split_data_rows(dataY, split_rate)
 
   # 将特征数据归一化
-  X_train = scale_elem(X_train)
-  X_test = scale_elem(X_test)
+  #X_train = scale_elem(X_train)
+  #X_test = scale_elem(X_test)
 
-  return (X_train,X_test,Y_train,Y_test)
+  #return (X_train,X_test,Y_train,Y_test)
 
 def clean_stock_data(stock_data, split_rate=0.7, seq_len=7,
                      x_cols=x_cols, y_cols=y_cols):
@@ -123,7 +126,7 @@ def get_list_stock_data(stock_type):
     print(file_path)
     stock_data = pd.read_csv(file_path)
     try: 
-      (X,_,Y,_) = get_stock_samples(stock_data,split_rate=1.0) 
+      (X,Y) = get_stock_samples(stock_data) 
     except:
       continue
 
