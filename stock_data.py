@@ -6,6 +6,8 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.preprocessing import scale, minmax_scale 
 from sklearn.decomposition import PCA
 
+import stat_utils
+
 def shufflelists(lists):
   # reindex
   ri = np.random.permutation(len(lists[0]))
@@ -80,17 +82,6 @@ def get_stock_samples(stock_data, x_cols=x_cols, seq_len = 30, n_hold_days=5): #
   
   return X,Y
 
-  #dataX,dataY = shufflelists([dataX,dataY])
-  
-  #(X_train,X_test) = split_data_rows(dataX, split_rate)
-  #(Y_train,Y_test) = split_data_rows(dataY, split_rate)
-
-  # 将特征数据归一化
-  #X_train = scale_elem(X_train)
-  #X_test = scale_elem(X_test)
-
-  #return (X_train,X_test,Y_train,Y_test)
-
 def clean_stock_data(stock_data, split_rate=0.7, seq_len=7,
                      x_cols=x_cols, y_cols=y_cols):
 
@@ -154,7 +145,18 @@ def get_concepts_stock_samples(c_name):
   return (X,Y)
   
 if __name__ == '__main__':
-  (X,Y) = get_concepts_stock_samples('特斯拉')
+  
+  df = pd.read_csv('data/k/600000.csv')
+  df = stock_data_add_return(df,n_hold_days=5)
+  x_cols=['open', 'close', 'high', 'low', 'volume'] 
+  df1 = df[x_cols]
+  (eigvals1,eigvecs1,weights1) = stat_utils.pca(df1.values)
+
+  x_cols=['open', 'close', 'high', 'low', 'volume', 'return'] 
+  df2 = df[x_cols]
+  (eigvals2,eigvecs2,weights2) = stat_utils.pca(df2.values)
+  
+  #(X,Y) = get_concepts_stock_samples('特斯拉')
   #concepts  = pd.read_csv('data/concept_classified.csv', 
   #                        dtype={'code': str})
   #concepts = concepts[concepts['c_name']=='特斯拉']

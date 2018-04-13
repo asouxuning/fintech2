@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import binarize
 import matplotlib.pyplot as plt
 from sklearn.svm import SVC
 import sys
@@ -9,19 +10,24 @@ import stock_data as sd
 
 dtype = tf.float32
 
-path = 'data/hist/600000.csv'
+#path = 'data/hist/600000.csv'
+path = 'data/k/600000.csv'
 stock_data = pd.read_csv(path)
 
-#x,y = sd.get_stock_samples(stock_data)
-(x,y) = sd.get_concepts_stock_samples('特斯拉')
-x = sd.scale_elem(x)
+#x_cols=['close'] 
+x_cols=['open', 'close', 'high', 'low', 'volume', 'return'] 
 
+x,y = sd.get_stock_samples(stock_data, x_cols=x_cols)
+#(x,y) = sd.get_concepts_stock_samples('特斯拉')
+x = sd.scale_elem(x)
 x_train,x_test,y_train,y_test = train_test_split(x,y)
+# 训练集中再分出验证集
+x_train,x_vali,y_train,y_vali = train_test_split(x_train,y_train)
 
 n_input = x_train.shape[-1]
 seq_len = x_train.shape[-2]
 n_output = y_train.shape[-1]
-n_state = 2
+n_state = 3
 
 # 
 X = tf.placeholder(dtype, (None, seq_len, n_input))
@@ -51,7 +57,7 @@ accuracy = tf.reduce_mean(tf.cast(
                               ),
                            tf.float32))
 # optimizer
-lr = 0.01
+lr = 0.5 
 optimizer = tf.train.GradientDescentOptimizer(lr)
 train = optimizer.minimize(loss)
 
@@ -62,12 +68,11 @@ with tf.Session() as sess:
 
   losses = []
   accs = []
-  epochs = 1000
-  batch_size = 1024 #X_train.shape[0]
-  vali_feed = {X: x_test, Y: y_test}
+  epochs = 50
+  batch_size = 64#x_train.shape[0]
+  vali_feed = {X: x_vali, Y: y_vali}
   train_feed = {X: x_train, Y: y_train}
   for i in range(epochs):
-    #X_train,Y_train = sd.shufflelists([X_train,Y_train])
     batchs = x_train.shape[0] // batch_size + 1
 
     #train_loss = 0.0
@@ -106,6 +111,13 @@ with tf.Session() as sess:
   plt.legend()
   plt.show()
 
+  test_feed = {X: x_test, Y: y_test}
+  test_loss = sess.run(loss, feed_dict=test_feed)
+  test_acc = sess.run(accuracy, feed_dict=test_feed)
+
+  print('test loss: %f' % test_loss)
+  print('test accuracy: %f' % test_acc)
+
   train_pred = sess.run(Y_pred, feed_dict={X: x_train})
   plt.plot(y_train, label='true')
   plt.plot(train_pred, label='predict')
@@ -120,9 +132,11 @@ with tf.Session() as sess:
 
   Z_ = sess.run(Z, feed_dict={X: x})
 
-labels = np.where(y>0.0, 1.0, -1.0)
+#labels = np.where(y>0.0, 1.0, -1.0)
 ## sklearn.svm.SVC的label需要一维张量
+labels = binarize(y)
 labels = labels.reshape((labels.shape[0],))
+
 
 # svm classification
 z0 = Z_[:,0]
@@ -135,9 +149,36 @@ colors = np.where(labels==1.0, 'red', 'green')
 plt.scatter(z0, z1, color=colors)
 plt.show()
 
+if n_state == 3:
+  z2 = Z_[:,2]
+  z2 = z2.reshape((l,))
+  colors = np.where(labels==1.0, 'red', 'green')
+  plt.scatter(z1, z2, color=colors)
+  plt.show()
+  
+  colors = np.where(labels==1.0, 'red', 'green')
+  plt.scatter(z0, z2, color=colors)
+  plt.show()
+
 train_correct = np.mean(((train_pred>0.0) == (y_train>0.0)).astype(np.float32))
 print(train_correct)
 
 test_correct = np.mean(((test_pred>0.0) == (y_test>0.0)).astype(np.float32))
 print(test_correct)
 
+C = 0.7
+print('linear svm kernel:')
+clf = SVC(C=C,kernel='linear')
+clf.fit(Z_,labels)
+print('%d: %f' % (1,clf.score(Z_,labels)))
+
+print('poly svm kernel:')
+k = 1
+clf = SVC(C=C,kernel='poly',degree=k)
+clf.fit(Z_,labels)
+print('%d: %f' % (1,clf.score(Z_,labels)))
+  
+print('gaussian svm kernel:')
+clf = SVC(C=C, kernel='rbf', gamma=0.1)
+clf.fit(Z_,labels)
+print('%d: %f' % (0,clf.score(Z_,labels)))
