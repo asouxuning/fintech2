@@ -116,32 +116,53 @@ def binarize_labels(Y,range_={-1.0,1.0}):
 def ravel_feats(X):
   return X.reshape((X.shape[0],-1))
 
-def get_list_stock_data(stock_type):
-  path = 'data/'+stock_type+'/'
-  files = os.listdir(path)
+def get_list_stock_data(codes, stock_type):
+  base = 'data/'+stock_type+'/'
+
+  stock_data_list = []
+  for code in codes:
+    path = base+code+'.csv'
+    stock_data = pd.read_csv(path)
+    stock_data_list.append(stock_data)
+
+  return stock_data_list
+    
+def get_list_stock_samples(stock_data_list):
   X_list = []
   Y_list = []
-  for f in files:
-    file_path = path + f
-    print(file_path)
-    stock_data = pd.read_csv(file_path)
-    try: 
-      (X,Y) = get_stock_samples(stock_data) 
+  for stock_data in stock_data_list:
+    try:
+      (X,Y) = get_stock_samples(stock_data)
+      X_list.append(X)
+      Y_list.append(Y)
     except:
       continue
-
-    X_list.append(X)
-    Y_list.append(Y)
-  
   X = np.vstack(X_list)
   Y = np.vstack(Y_list)
+  return (X,Y)
 
-  return X,Y
-
+# c_name: concept name
+def get_concepts_stock_samples(c_name):
+  concepts  = pd.read_csv('data/concept_classified.csv', 
+                          dtype={'code': str})
+  concepts = concepts[concepts['c_name']==c_name]
+  concepts = concepts['code']
+  stock_data_list = get_list_stock_data(concepts, 'k')
+  (X,Y) = get_list_stock_samples(stock_data_list)
+  #X.dump('data/samples/X.npy')
+  #Y.dump('data/samples/Y.npy')
+  return (X,Y)
+  
 if __name__ == '__main__':
-  X,Y = get_list_stock_data('k')
-  X.dump('X.npy')
-  Y.dump('Y.npy')
+  (X,Y) = get_concepts_stock_samples('特斯拉')
+  #concepts  = pd.read_csv('data/concept_classified.csv', 
+  #                        dtype={'code': str})
+  #concepts = concepts[concepts['c_name']=='特斯拉']
+  #concepts = concepts['code']
+  #stock_data_list = get_list_stock_data(concepts, 'k')
+  #(X,Y) = get_list_stock_samples(stock_data_list)
+  #X.dump('data/samples/X.npy')
+  #Y.dump('data/samples/Y.npy')
 
   ##path = 'data/k/600000.csv'
   #path = 'data/hist/600000.csv'
