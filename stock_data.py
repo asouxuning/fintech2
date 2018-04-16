@@ -50,12 +50,12 @@ def split_data_rows(stock_data, split_rate):
 def get_seq_samples(x,y,seq_len):
   x_list = []
   y_list = []
-  for i in range(len(x)-seq_len):
+  for i in range(len(x)-(seq_len-1)):
     _x = x[i:i+seq_len]
     x_list.append(_x)
 
-    _y = y[i+seq_len]
-    y_list.append(_y)
+    _y = y[i+seq_len-]
+y_list.append(_y)
 
   x = np.stack(x_list)
   y = np.stack(y_list)
@@ -71,7 +71,7 @@ def scale_elem(X, scale=scale):
     return np.array([])
     
 x_cols=['open', 'close', 'high', 'low', 'volume'] 
-def get_stock_samples(stock_data, x_cols=x_cols, seq_len = 30, n_hold_days=5): #, split_rate=0.8):
+def get_stock_samples(stock_data, x_cols=x_cols, seq_len = 30, n_hold_days=5): 
   # 先升序排列,再添加收益率 
   stock_data = set_stock_data_datetime_index(stock_data)
   
@@ -82,21 +82,21 @@ def get_stock_samples(stock_data, x_cols=x_cols, seq_len = 30, n_hold_days=5): #
   
   return X,Y
 
-def clean_stock_data(stock_data, split_rate=0.7, seq_len=7,
-                     x_cols=x_cols, y_cols=y_cols):
-
-  stock_data = set_stock_data_datetime_index(stock_data)
-  x,y = split_data_cols(stock_data, x_cols=x_cols, y_cols=y_cols)
-
-  dataX,dataY = get_seq_samples(x,y,seq_len)
-
-  (trainX,testX) = split_data_rows(dataX, split_rate)
-  (trainY,testY) = split_data_rows(dataY, split_rate)
-
-  trainX = scale_elem(trainX)
-  testX = scale_elem(testX)
-  
-  return (trainX,trainY,testX,testY)
+#def clean_stock_data(stock_data, split_rate=0.7, seq_len=7,
+#                     x_cols=x_cols, y_cols=y_cols):
+#
+#  stock_data = set_stock_data_datetime_index(stock_data)
+#  x,y = split_data_cols(stock_data, x_cols=x_cols, y_cols=y_cols)
+#
+#  dataX,dataY = get_seq_samples(x,y,seq_len)
+#
+#  (trainX,testX) = split_data_rows(dataX, split_rate)
+#  (trainY,testY) = split_data_rows(dataY, split_rate)
+#
+#  trainX = scale_elem(trainX)
+#  testX = scale_elem(testX)
+#  
+#  return (trainX,trainY,testX,testY)
 
 # 二值化股票的涨跌幅数据
 def binarize_labels(Y,range_={-1.0,1.0}):
@@ -145,17 +145,19 @@ def get_concepts_stock_samples(c_name):
   return (X,Y)
   
 if __name__ == '__main__':
-  
-  df = pd.read_csv('data/k/600000.csv')
-  df = stock_data_add_return(df,n_hold_days=5)
-  x_cols=['open', 'close', 'high', 'low', 'volume'] 
-  df1 = df[x_cols]
-  (eigvals1,eigvecs1,weights1) = stat_utils.pca(df1.values)
-
+  stock_data = pd.read_csv('data/k/600000.csv')
   x_cols=['open', 'close', 'high', 'low', 'volume', 'return'] 
-  df2 = df[x_cols]
-  (eigvals2,eigvecs2,weights2) = stat_utils.pca(df2.values)
-  
+  (x,y) = get_stock_samples(stock_data, x_cols=x_cols)
+  #df = pd.read_csv('data/k/600000.csv')
+  #df = stock_data_add_return(df,n_hold_days=5)
+  #x_cols=['open', 'close', 'high', 'low', 'volume'] 
+  #df1 = df[x_cols]
+  #(eigvals1,eigvecs1,weights1) = stat_utils.pca(df1.values)
+
+  #x_cols=['open', 'close', 'high', 'low', 'volume', 'return'] 
+  #df2 = df[x_cols]
+  #(eigvals2,eigvecs2,weights2) = stat_utils.pca(df2.values)
+  #
   #(X,Y) = get_concepts_stock_samples('特斯拉')
   #concepts  = pd.read_csv('data/concept_classified.csv', 
   #                        dtype={'code': str})

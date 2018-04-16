@@ -11,16 +11,26 @@ import stock_data as sd
 dtype = tf.float32
 batch_size = 64
 
-#path = 'data/hist/600000.csv'
 path = 'data/k/600000.csv'
 stock_data = pd.read_csv(path)
 
-#x_cols=['close'] 
+#x_cols=['return'] 
 x_cols=['open', 'close', 'high', 'low', 'volume', 'return'] 
 
-(x,y) = sd.get_stock_samples(stock_data, x_cols=x_cols)
+(x,y) = sd.get_stock_samples(stock_data, x_cols=x_cols,
+                             n_hold_days=5)
 #(x,y) = sd.get_concepts_stock_samples('特斯拉')
 x = sd.scale_elem(x)
+
+# 将最后一个样本留出来作为未来的预测
+# 注意:特征样本进行预测时必须要先归一化
+#      否则会出现预测结果非常不稳定的情况
+split = 2
+x_new = x[-split:None]
+y_new = y[-split:None]
+x = x[:-split]
+y = y[:-split]
+
 x_train,x_test,y_train,y_test = train_test_split(x,y)
 # 训练集中再分出验证集
 x_train,x_vali,y_train,y_vali = train_test_split(x_train,y_train)
@@ -30,7 +40,6 @@ seq_len = x_train.shape[-2]
 n_output = y_train.shape[-1]
 n_state = 3
 
-#with tf.device('/gpu:0'):
 # 
 X = tf.placeholder(dtype, (None, seq_len, n_input))
 Y = tf.placeholder(dtype, (None, n_output))
@@ -59,8 +68,7 @@ accuracy = tf.reduce_mean(tf.cast(
 
 # optimizer
 learning_rate = 0.5 
-#decay_rate = 1.0
-decay_rate = 0.999
+decay_rate = 0.99
 decay_steps = x_train.shape[0] // batch_size + 1
 global_step = tf.Variable(tf.constant(0), trainable=False)
 
@@ -75,7 +83,7 @@ train = optimizer.minimize(loss, global_step=global_step)
 init = tf.global_variables_initializer()
 
 config=tf.ConfigProto(log_device_placement=True)
-with tf.Session(config=config) as sess:
+with tf.Session(config=None) as sess:
   sess.run(init)
 
   losses = []
@@ -141,6 +149,10 @@ with tf.Session(config=config) as sess:
   plt.legend()
   plt.show()
 
+  rets = sess.run(Y_pred, feed_dict={X: x_new})
+  for ret in rets:
+    print("predict return %f:" % ret)
+  
   #Z_ = sess.run(Z, feed_dict={X: x})
 
 ##labels = np.where(y>0.0, 1.0, -1.0)
