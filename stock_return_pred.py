@@ -9,6 +9,7 @@ import sys
 import stock_data as sd
 
 dtype = tf.float32
+batch_size = 64
 
 #path = 'data/hist/600000.csv'
 path = 'data/k/600000.csv'
@@ -17,7 +18,7 @@ stock_data = pd.read_csv(path)
 #x_cols=['close'] 
 x_cols=['open', 'close', 'high', 'low', 'volume', 'return'] 
 
-x,y = sd.get_stock_samples(stock_data, x_cols=x_cols)
+(x,y) = sd.get_stock_samples(stock_data, x_cols=x_cols)
 #(x,y) = sd.get_concepts_stock_samples('特斯拉')
 x = sd.scale_elem(x)
 x_train,x_test,y_train,y_test = train_test_split(x,y)
@@ -29,14 +30,14 @@ seq_len = x_train.shape[-2]
 n_output = y_train.shape[-1]
 n_state = 3
 
+#with tf.device('/gpu:0'):
 # 
 X = tf.placeholder(dtype, (None, seq_len, n_input))
 Y = tf.placeholder(dtype, (None, n_output))
 
 cell = tf.nn.rnn_cell.LSTMCell(num_units=n_state, 
-                               activation=tf.nn.sigmoid, 
-                               initializer=tf.orthogonal_initializer(), 
-                               name="rnn_cell")
+                activation=tf.nn.sigmoid, 
+                initializer=tf.orthogonal_initializer()) 
 outputs,states = tf.nn.dynamic_rnn(cell, X, dtype=dtype)
 
 Z = outputs[:,-1]
@@ -52,30 +53,39 @@ loss = tf.reduce_mean(tf.square(Y_pred-Y))
 
 # 
 accuracy = tf.reduce_mean(tf.cast(
-                           tf.equal((tf.greater(Y_pred,0.0)),
-                                    (tf.greater(Y,0.0))
-                              ),
-                           tf.float32))
+                 tf.equal((tf.greater(Y_pred,0.0)),
+                 (tf.greater(Y,0.0))
+            ), tf.float32))
+
 # optimizer
-lr = 0.5 
+learning_rate = 0.5 
+#decay_rate = 1.0
+decay_rate = 0.999
+decay_steps = x_train.shape[0] // batch_size + 1
+global_step = tf.Variable(tf.constant(0), trainable=False)
+
+lr = tf.train.exponential_decay(learning_rate=learning_rate,
+                                global_step=global_step,
+                                decay_steps=decay_steps,
+                                decay_rate=decay_rate)
+
 optimizer = tf.train.GradientDescentOptimizer(lr)
-train = optimizer.minimize(loss)
+train = optimizer.minimize(loss, global_step=global_step)
 
 init = tf.global_variables_initializer()
 
-with tf.Session() as sess:
+config=tf.ConfigProto(log_device_placement=True)
+with tf.Session(config=config) as sess:
   sess.run(init)
 
   losses = []
   accs = []
-  epochs = 50
-  batch_size = 64#x_train.shape[0]
+  epochs = 100
   vali_feed = {X: x_vali, Y: y_vali}
   train_feed = {X: x_train, Y: y_train}
   for i in range(epochs):
     batchs = x_train.shape[0] // batch_size + 1
 
-    #train_loss = 0.0
     for k in range(batchs):
       x_batch = x_train[k*batch_size:(k+1)*batch_size]
       y_batch = y_train[k*batch_size:(k+1)*batch_size]
@@ -97,6 +107,7 @@ with tf.Session() as sess:
     accs.append([train_acc,vali_acc])
 
     print("%d: %f - %f, %f - %f" % (i, train_loss, vali_loss, train_acc, vali_acc))
+    #print("%d: %f" % sess.run((global_step,lr)))
 
   losses = np.vstack(losses)
   accs = np.vstack(accs)
@@ -130,55 +141,55 @@ with tf.Session() as sess:
   plt.legend()
   plt.show()
 
-  Z_ = sess.run(Z, feed_dict={X: x})
+  #Z_ = sess.run(Z, feed_dict={X: x})
 
-#labels = np.where(y>0.0, 1.0, -1.0)
-## sklearn.svm.SVC的label需要一维张量
-labels = binarize(y)
-labels = labels.reshape((labels.shape[0],))
+##labels = np.where(y>0.0, 1.0, -1.0)
+### sklearn.svm.SVC的label需要一维张量
+#labels = binarize(y)
+#labels = labels.reshape((labels.shape[0],))
 
 
-# svm classification
-z0 = Z_[:,0]
-z1 = Z_[:,1]
-l = len(z0)
-z0 = z0.reshape((l,))
-z1 = z1.reshape((l,))
+## svm classification
+#z0 = Z_[:,0]
+#z1 = Z_[:,1]
+#l = len(z0)
+#z0 = z0.reshape((l,))
+#z1 = z1.reshape((l,))
+#
+#colors = np.where(labels==1.0, 'red', 'green')
+#plt.scatter(z0, z1, color=colors)
+#plt.show()
+#
+#if n_state == 3:
+#  z2 = Z_[:,2]
+#  z2 = z2.reshape((l,))
+#  colors = np.where(labels==1.0, 'red', 'green')
+#  plt.scatter(z1, z2, color=colors)
+#  plt.show()
+#  
+#  colors = np.where(labels==1.0, 'red', 'green')
+#  plt.scatter(z0, z2, color=colors)
+#  plt.show()
+#
+#train_correct = np.mean(((train_pred>0.0) == (y_train>0.0)).astype(np.float32))
+#print(train_correct)
+#
+#test_correct = np.mean(((test_pred>0.0) == (y_test>0.0)).astype(np.float32))
+#print(test_correct)
 
-colors = np.where(labels==1.0, 'red', 'green')
-plt.scatter(z0, z1, color=colors)
-plt.show()
-
-if n_state == 3:
-  z2 = Z_[:,2]
-  z2 = z2.reshape((l,))
-  colors = np.where(labels==1.0, 'red', 'green')
-  plt.scatter(z1, z2, color=colors)
-  plt.show()
-  
-  colors = np.where(labels==1.0, 'red', 'green')
-  plt.scatter(z0, z2, color=colors)
-  plt.show()
-
-train_correct = np.mean(((train_pred>0.0) == (y_train>0.0)).astype(np.float32))
-print(train_correct)
-
-test_correct = np.mean(((test_pred>0.0) == (y_test>0.0)).astype(np.float32))
-print(test_correct)
-
-C = 0.7
-print('linear svm kernel:')
-clf = SVC(C=C,kernel='linear')
-clf.fit(Z_,labels)
-print('%d: %f' % (1,clf.score(Z_,labels)))
-
-print('poly svm kernel:')
-k = 1
-clf = SVC(C=C,kernel='poly',degree=k)
-clf.fit(Z_,labels)
-print('%d: %f' % (1,clf.score(Z_,labels)))
-  
-print('gaussian svm kernel:')
-clf = SVC(C=C, kernel='rbf', gamma=0.1)
-clf.fit(Z_,labels)
-print('%d: %f' % (0,clf.score(Z_,labels)))
+#C = 0.7
+#print('linear svm kernel:')
+#clf = SVC(C=C,kernel='linear')
+#clf.fit(Z_,labels)
+#print('%d: %f' % (1,clf.score(Z_,labels)))
+#
+#print('poly svm kernel:')
+#k = 1
+#clf = SVC(C=C,kernel='poly',degree=k)
+#clf.fit(Z_,labels)
+#print('%d: %f' % (1,clf.score(Z_,labels)))
+#  
+#print('gaussian svm kernel:')
+#clf = SVC(C=C, kernel='rbf', gamma=0.1)
+#clf.fit(Z_,labels)
+#print('%d: %f' % (0,clf.score(Z_,labels)))
