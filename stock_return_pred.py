@@ -137,16 +137,19 @@ def train_and_predict(code,data_set,x_new,verbose=True,show_graph=False):
   
         sess.run(train, feed_dict=batch_feed)
   
+      train_loss = sess.run(loss, feed_dict=train_feed)
       if x_vali is not None:
         vali_loss = sess.run(loss, feed_dict=vali_feed)
-      train_loss = sess.run(loss, feed_dict=train_feed)
-  
-      losses.append([train_loss,vali_loss])
+        losses.append([train_loss,vali_loss])
+      else:
+        losses.append([train_loss])
   
       train_acc = sess.run(accuracy, feed_dict=train_feed)
       if x_vali is not None:
         vali_acc = sess.run(accuracy, feed_dict=vali_feed)
-      accs.append([train_acc,vali_acc])
+        accs.append([train_acc,vali_acc])
+      else:
+        accs.append([train_acc])
   
       if verbose == True:
         if x_vali is not None:
@@ -190,11 +193,15 @@ if __name__ == '__main__':
     row = stocks.iloc[i]
     code = row['code']
     name = row['name']
-    data_set,x_new = get_stock_data_set(code,with_vali=False)
+    try:
+      data_set,x_new = get_stock_data_set(code,with_vali=False)
+    except:
+      continue
     confidence,rets = train_and_predict(code,data_set,
                                   x_new,verbose=False,
-                                  show_graph=True)
+                                  show_graph=False)
     res.append((code,confidence,rets))
 
     print("%s(%s):\t%f(%f)" % (name, code, rets[-1], confidence))
+  res = sorted(res, key=lambda r: r[2][-1], reverse=True)
 
