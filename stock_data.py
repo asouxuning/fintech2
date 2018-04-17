@@ -54,8 +54,8 @@ def get_seq_samples(x,y,seq_len):
     _x = x[i:i+seq_len]
     x_list.append(_x)
 
-    _y = y[i+seq_len-]
-y_list.append(_y)
+    _y = y[i+seq_len-1]
+    y_list.append(_y)
 
   x = np.stack(x_list)
   y = np.stack(y_list)
@@ -70,33 +70,16 @@ def scale_elem(X, scale=scale):
   else:
     return np.array([])
     
-x_cols=['open', 'close', 'high', 'low', 'volume'] 
-def get_stock_samples(stock_data, x_cols=x_cols, seq_len = 30, n_hold_days=5): 
+def get_stock_samples(stock_data, x_cols=x_cols, y_cols=y_cols, seq_len = 30): #, n_hold_days=5): 
   # 先升序排列,再添加收益率 
-  stock_data = set_stock_data_datetime_index(stock_data)
+  #stock_data = set_stock_data_datetime_index(stock_data)
   
-  stock_data = stock_data_add_return(stock_data, n_hold_days)
+  #stock_data = stock_data_add_return(stock_data, n_hold_days)
   
-  x,y = split_data_cols(stock_data, x_cols=x_cols, y_cols=['return'])
+  x,y = split_data_cols(stock_data, x_cols=x_cols, y_cols=y_cols)
   X,Y = get_seq_samples(x,y,seq_len)
   
   return X,Y
-
-#def clean_stock_data(stock_data, split_rate=0.7, seq_len=7,
-#                     x_cols=x_cols, y_cols=y_cols):
-#
-#  stock_data = set_stock_data_datetime_index(stock_data)
-#  x,y = split_data_cols(stock_data, x_cols=x_cols, y_cols=y_cols)
-#
-#  dataX,dataY = get_seq_samples(x,y,seq_len)
-#
-#  (trainX,testX) = split_data_rows(dataX, split_rate)
-#  (trainY,testY) = split_data_rows(dataY, split_rate)
-#
-#  trainX = scale_elem(trainX)
-#  testX = scale_elem(testX)
-#  
-#  return (trainX,trainY,testX,testY)
 
 # 二值化股票的涨跌幅数据
 def binarize_labels(Y,range_={-1.0,1.0}):
@@ -144,10 +127,29 @@ def get_concepts_stock_samples(c_name):
   #Y.dump('data/samples/Y.npy')
   return (X,Y)
   
+# 从股票数据中取得最新的n个样本
+def get_latest_stock_features(stock_data, x_cols=x_cols, 
+                              seq_len=30, n=1):
+  features = []
+
+  # 添加第一个样本
+  stock_data = stock_data[x_cols]
+  feature = stock_data[-seq_len:None]
+  features.append(feature)
+  for i in range(1,n):
+    #截取倒数第i+1个元素到倒数第i+seq_len个元素的切片
+    feature = stock_data[-(i+seq_len):-i]
+    features.append(feature)
+
+  return np.stack(features)
+  
 if __name__ == '__main__':
   stock_data = pd.read_csv('data/k/600000.csv')
+  stock_data = set_stock_data_datetime_index(stock_data)
+  features = get_latest_stock_features(stock_data, n=1)
   x_cols=['open', 'close', 'high', 'low', 'volume', 'return'] 
   (x,y) = get_stock_samples(stock_data, x_cols=x_cols)
+  
   #df = pd.read_csv('data/k/600000.csv')
   #df = stock_data_add_return(df,n_hold_days=5)
   #x_cols=['open', 'close', 'high', 'low', 'volume'] 
