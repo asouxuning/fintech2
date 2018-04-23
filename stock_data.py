@@ -57,8 +57,14 @@ def get_seq_samples(x,y,seq_len):
     _y = y[i+seq_len-1]
     y_list.append(_y)
 
-  x = np.stack(x_list)
-  y = np.stack(y_list)
+  # 预计会有因样本不足导致的对空列表
+  # 进行stack产生的ValueError
+  try:
+    x = np.stack(x_list)
+    y = np.stack(y_list)
+  except ValueError:
+    raise
+
   return x,y
   
 def scale_elem(X, scale=scale):
