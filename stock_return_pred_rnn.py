@@ -4,11 +4,13 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import binarize
+import matplotlib
 import matplotlib.pyplot as plt
 from sklearn.svm import SVC
 import sys
 import stock_data as sd
 from rnn2 import RNN
+import time
 
 batch_size = 64
 
@@ -129,7 +131,10 @@ if __name__ == '__main__':
     
   stocks = zip(stocks['code'],stocks['name'])
 
-  res = []
+  #companies = {}
+  companies =[]
+  date = time.strftime("%Y-%m-%d", 
+                       time.localtime(time.time()))
   i = 0
   for (code,name) in stocks:
     try:
@@ -143,13 +148,18 @@ if __name__ == '__main__':
                       epochs=100)
     
       rets = model.predict(_)
-      #print("%s: %.2f%%" % (code, round(acc*100,2)))
       print("%d: %s(%s):\t%.4f(%.1f%%)" % (i, name, code, round(rets[-1][0],4), round(acc*100,1)))
-      res.append((code,acc,rets))
+
+      company = (code, name, float(rets[-1]), float(acc))
+      companies.append(company)
+
       i += 1
     except ValueError as e:
-      #print("%s(%s):\t\tno enough data for a sample" % (name,code))
       continue
     
-  res = sorted(res, key=lambda r: r[2][-1], reverse=True)
-
+  companies_sorted = sorted(companies,
+                            key=lambda item: item[2], 
+                            reverse=True)
+  df = pd.DataFrame(companies_sorted)
+  df.columns = ['code', 'name', 'return', 'accuracy']
+  df.to_csv('report/report_'+date+'.csv')
